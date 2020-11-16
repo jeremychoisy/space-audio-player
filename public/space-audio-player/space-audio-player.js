@@ -122,13 +122,88 @@ template.innerHTML = `
     
     #source-dialog {
         border-radius: 1rem;
+        border: 0.2rem solid #b90606;
+        box-shadow: 1rem 0.5rem 0.5rem black;
     }
     
     #dialog-menu {
         margin: 3rem 0 0;
     }
+    
+    #drop-area {
+        display: flex;
+        justify-content: center;
+        align-items: center;      
+        margin-top: 2rem;
+        border: 0.2rem solid black;
+        height: 5rem;
+        color: #b90606;
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(0, 0, 0, 0.2),
+          rgba(0, 0, 0, 0.2) 10px,
+          rgba(0, 0, 0, 0.6) 10px,
+          rgba(0, 0, 0, 0.6) 20px
+        );
+    }
+    
+    #song-title-container {
+        height: 1.5rem;
+        width: 30rem;
+        border: 0.2rem solid #b90606;
+        overflow: hidden;
+        position: relative;
+        margin: 0 0 1rem 1.5rem;
+    }
+    
+    #song-title-container div {
+        display: block;
+        width: 200%;
+        height: 30px;
+    
+        position: absolute;
+        overflow: hidden;
+    
+        animation: marquee 5s linear infinite;
+    }
+    
+    #song-title-container span {
+        float: left;
+        width: 50%;
+    }
+    
+    @-webkit-keyframes marquee {
+        0% {left: 0;}
+        100% {left: -100%}
+    }
+    
+    @-moz-keyframes marquee {
+        0% {left: 0;}
+        100% {left: -100%}
+    }
+    
+    @-o-keyframes marquee {
+        0% {left: 0;}
+        100% {left: -100%}
+    }
+    
+    @-ms-keyframes marquee {
+        0% {left: 0;}
+        100% {left: -100%}
+    }
+    
+    @keyframes marquee {
+        0% {left: 0;}
+        100% {left: -100%}
+    }
   </style>
   <div id="container">
+      <div id="song-title-container">
+        <div>
+            <span class="song-title-label"></span>
+            <span class="song-title-label"></span>
+        </div>
+      </div>
       <div id="header-container">
         <canvas id="canvas" height="200px" width="250px"></canvas>
         <img id="grid" src="assets/img/grid.gif" width="500px" height="200px" alt="red grid picture">
@@ -208,8 +283,11 @@ template.innerHTML = `
       <form method="dialog">
         <label for="source">url :</label>
         <input type="text" id="source" name="source">
+        <div id="drop-area">
+            <span id="drop-area-label">Drop mp3 songs here</span>
+        </div>
         <menu id="dialog-menu">
-          <button id="confirmBtn" value="default">Confirm</button>
+          <button id="confirmBtn" value="default" disabled>Confirm</button>
           <button value="cancel">Cancel</button>
         </menu>
       </form>
@@ -240,9 +318,9 @@ class SpaceAudioPlayer extends HTMLElement {
         /* Fix relative paths in the template's content */
         const srcElements = templateContent.querySelectorAll('webaudio-knob, webaudio-switch, webaudio-slider, img, source');
         srcElements.forEach((e) => {
-            const currentImagePath = e.getAttribute('src');
-            if (currentImagePath) {
-                e.setAttribute('src', this.basePath + currentImagePath);
+            const currentPath = e.getAttribute('src');
+            if (currentPath) {
+                e.setAttribute('src', this.basePath + currentPath);
             }
         });
 
@@ -273,6 +351,10 @@ class SpaceAudioPlayer extends HTMLElement {
         const templateContent = template.content;
         this.fixImageRelativePaths(templateContent);
         this.shadowRoot.appendChild(templateContent.cloneNode(true));
+
+        // set song name
+        const source = this.shadowRoot.querySelector('source');
+        this.setSongName(source.getAttribute('src'));
 
         // setup Dialog
         this.setupDialog();
@@ -307,6 +389,11 @@ class SpaceAudioPlayer extends HTMLElement {
         const source = this.shadowRoot.querySelector('source');
         const audio = this.shadowRoot.querySelector('audio');
         const playButton = this.shadowRoot.getElementById('playPause');
+
+        const dropArea = this.shadowRoot.getElementById('drop-area');
+        dropArea.ondrop = (evt) => this.dropEvent(evt);
+        dropArea.ondragover= (evt) => this.dragOver(evt);
+
         this.shadowRoot.getElementById('change-url').onclick = () => {
             if (typeof dialog.showModal === "function") {
                 dialog.showModal();
@@ -315,12 +402,17 @@ class SpaceAudioPlayer extends HTMLElement {
             }
         };
         input.addEventListener('change', function onSelect(e) {
-            confirmBtn.value = input.value;
+            if (input.value) {
+                confirmBtn.value = JSON.stringify({link: input.value});
+                confirmBtn.disabled = false;
+            }
         });
         dialog.addEventListener('close', () => {
-            if(dialog.returnValue !== 'cancel') {
-                source.setAttribute('src', dialog.returnValue);
+            if(dialog.returnValue !== 'cancel' && dialog.returnValue) {
+                const parsedValue = JSON.parse(dialog.returnValue);
+                source.setAttribute('src', parsedValue.url || parsedValue.link);
                 audio.load();
+                this.setSongName(parsedValue.name || parsedValue.link);
                 playButton.innerHTML = '<img src="' + this.basePath + 'assets/buttons/play.png" alt="play icon">';
             }
         });
@@ -554,6 +646,28 @@ class SpaceAudioPlayer extends HTMLElement {
 
     restart() {
         this.audio.currentTime = 0;
+    }
+
+    dragOver(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+        return false;
+    }
+
+    dropEvent(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+
+        const droppedFiles = evt.dataTransfer.files;
+        const confirmBtn = this.shadowRoot.getElementById('confirmBtn');
+        confirmBtn.value = JSON.stringify({name: droppedFiles[0].name, url: URL.createObjectURL(droppedFiles[0])});
+        confirmBtn.disabled = false;
+    }
+
+    setSongName(url) {
+        const splitUrl = url.split('/');
+        const name = splitUrl[splitUrl.length - 1];
+        this.shadowRoot.querySelectorAll('span.song-title-label').forEach((e) => e.innerHTML = 'Currently playing: ' + name);
     }
 }
 
