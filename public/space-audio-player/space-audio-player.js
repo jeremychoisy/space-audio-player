@@ -104,7 +104,10 @@ template.innerHTML = `
         background-color: black;
         padding: 0.5rem;
         margin: 0 0.3rem;
-        border-radius: 0.3rem
+        font-family: mandalore;
+        border-radius: 0.3rem;
+        font-size: 16px;
+        color: #b90606;
     }
     
     output, #current-time, #duration {
@@ -115,6 +118,14 @@ template.innerHTML = `
     
     #current-time, #duration {
         width: 5rem;
+    }
+    
+    #source-dialog {
+        border-radius: 1rem;
+    }
+    
+    #dialog-menu {
+        margin: 3rem 0 0;
     }
   </style>
   <div id="container">
@@ -136,6 +147,7 @@ template.innerHTML = `
           </div>
       </div>
       <div id="button-container" class="sub-container">
+          <button id="change-url">Load song</button>      
           <button id="playPause"><img src="assets/buttons/play.png" alt="play icon"></button>
           <button id="restart"><img src="assets/buttons/restart.png" alt="restart icon"></button>
           <button id="rewind"><img src="assets/buttons/rewind.png" alt="rewind icon"></button>
@@ -192,6 +204,16 @@ template.innerHTML = `
 <!--        <label for="convolverSlider">Reverberation (Dry/Wet)</label>-->
 <!--        <input type="range" min="0" max="1" step="0.1" value="0" id="convolver" />-->
 <!--      </div>-->
+    <dialog id="source-dialog">
+      <form method="dialog">
+        <label for="source">url :</label>
+        <input type="text" id="source" name="source">
+        <menu id="dialog-menu">
+          <button id="confirmBtn" value="default">Confirm</button>
+          <button value="cancel">Cancel</button>
+        </menu>
+      </form>
+    </dialog>
   </div>`;
 
 class SpaceAudioPlayer extends HTMLElement {
@@ -207,10 +229,13 @@ class SpaceAudioPlayer extends HTMLElement {
     /*
      * Fix the images' relative path issue in the template, prior to adding it to the shadow dom.
      */
-    async fixImageRelativePaths(templateContent) {
-        /* set background image */
+    fixImageRelativePaths(templateContent) {
+        /* set background images */
         const container = templateContent.querySelector('#container');
         container.style.backgroundImage = 'url("' + this.basePath + 'assets/backgrounds/spaceship-texture.jpg")';
+
+        const dialog = templateContent.querySelector('#source-dialog');
+        dialog.style.backgroundImage = 'url("' + this.basePath + 'assets/backgrounds/spaceship-texture-2.jpg")';
 
         /* Fix relative paths in the template's content */
         const srcElements = templateContent.querySelectorAll('webaudio-knob, webaudio-switch, webaudio-slider, img, source');
@@ -249,6 +274,9 @@ class SpaceAudioPlayer extends HTMLElement {
         this.fixImageRelativePaths(templateContent);
         this.shadowRoot.appendChild(templateContent.cloneNode(true));
 
+        // setup Dialog
+        this.setupDialog();
+
         // Audio
         this.audio = this.shadowRoot.getElementById('audio');
         this.audio.onplay = () => this.audioContext.resume();
@@ -270,6 +298,32 @@ class SpaceAudioPlayer extends HTMLElement {
         for(let i = 0; i < 6; i++) {
             this.shadowRoot.getElementById("eq-" + i).oninput = (evt) => this.changeEq(evt.target.value, i);
         }
+    }
+
+    setupDialog() {
+        const dialog = this.shadowRoot.getElementById('source-dialog');
+        const input = this.shadowRoot.getElementById('source');
+        const confirmBtn = this.shadowRoot.getElementById('confirmBtn');
+        const source = this.shadowRoot.querySelector('source');
+        const audio = this.shadowRoot.querySelector('audio');
+        const playButton = this.shadowRoot.getElementById('playPause');
+        this.shadowRoot.getElementById('change-url').onclick = () => {
+            if (typeof dialog.showModal === "function") {
+                dialog.showModal();
+            } else {
+                console.error("The dialog API is not supported by your browser.");
+            }
+        };
+        input.addEventListener('change', function onSelect(e) {
+            confirmBtn.value = input.value;
+        });
+        dialog.addEventListener('close', () => {
+            if(dialog.returnValue !== 'cancel') {
+                source.setAttribute('src', dialog.returnValue);
+                audio.load();
+                playButton.innerHTML = '<img src="' + this.basePath + 'assets/buttons/play.png" alt="play icon">';
+            }
+        });
     }
 
     buildNodes() {
