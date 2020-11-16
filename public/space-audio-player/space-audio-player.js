@@ -132,6 +132,7 @@ template.innerHTML = `
     
     #drop-area {
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;      
         margin-top: 2rem;
@@ -222,8 +223,8 @@ template.innerHTML = `
           </div>
       </div>
       <div id="button-container" class="sub-container">
-          <button id="change-url">Load song</button>      
-          <button id="playPause"><img src="assets/buttons/play.png" alt="play icon"></button>
+          <button id="load-file">Load file</button>      
+          <button id="play-pause"><img src="assets/buttons/play.png" alt="play icon"></button>
           <button id="restart"><img src="assets/buttons/restart.png" alt="restart icon"></button>
           <button id="rewind"><img src="assets/buttons/rewind.png" alt="rewind icon"></button>
           <button id="skip"><img src="assets/buttons/skip.png" alt="skip icon"></button>
@@ -284,10 +285,15 @@ template.innerHTML = `
         <label for="source">url :</label>
         <input type="text" id="source" name="source">
         <div id="drop-area">
-            <span id="drop-area-label">Drop mp3 songs here</span>
+            <div>
+                <span id="drop-area-label">Drop mp3 files here</span>
+            </div>
+            <div>
+                <span id="drop-area-content"></span>
+            </div>
         </div>
         <menu id="dialog-menu">
-          <button id="confirmBtn" value="default" disabled>Confirm</button>
+          <button id="confirm-btn" value="default" disabled>Confirm</button>
           <button value="cancel">Cancel</button>
         </menu>
       </form>
@@ -379,7 +385,7 @@ class SpaceAudioPlayer extends HTMLElement {
 
         // Controllers
         this.shadowRoot.getElementById('audio').ontimeupdate = () => this.setProgressBar();
-        this.shadowRoot.getElementById('playPause').onclick = () => this.playPause();
+        this.shadowRoot.getElementById('play-pause').onclick = () => this.playPause();
         this.shadowRoot.getElementById('restart').onclick = () => this.restart();
         this.shadowRoot.getElementById('skip').onclick = () => this.skip(10);
         this.shadowRoot.getElementById('rewind').onclick = () => this.rewind(10);
@@ -399,16 +405,27 @@ class SpaceAudioPlayer extends HTMLElement {
     setupDialog() {
         const dialog = this.shadowRoot.getElementById('source-dialog');
         const input = this.shadowRoot.getElementById('source');
-        const confirmBtn = this.shadowRoot.getElementById('confirmBtn');
+        const confirmBtn = this.shadowRoot.getElementById('confirm-btn');
         const source = this.shadowRoot.querySelector('source');
         const audio = this.shadowRoot.querySelector('audio');
-        const playButton = this.shadowRoot.getElementById('playPause');
+        const playButton = this.shadowRoot.getElementById('play-pause');
+        const dropAreaContent = this.shadowRoot.getElementById('drop-area-content');
 
         const dropArea = this.shadowRoot.getElementById('drop-area');
-        dropArea.ondrop = (evt) => this.dropEvent(evt);
-        dropArea.ondragover= (evt) => this.dragOver(evt);
+        dropArea.ondrop = (evt) => {
+            this.dropEvent(evt);
+            dropArea.style.borderColor = 'black';
+        };
+        dropArea.ondragover = (evt) => {
+            dropArea.style.borderColor = 'red';
+            this.cancelEvent(evt)
+        };
+        dropArea.ondragleave = (evt) => {
+            dropArea.style.borderColor = 'black';
+            this.cancelEvent(evt)
+        };
 
-        this.shadowRoot.getElementById('change-url').onclick = () => {
+        this.shadowRoot.getElementById('load-file').onclick = () => {
             if (typeof dialog.showModal === "function") {
                 dialog.showModal();
             } else {
@@ -426,6 +443,7 @@ class SpaceAudioPlayer extends HTMLElement {
                 const parsedValue = JSON.parse(dialog.returnValue);
                 source.setAttribute('src', parsedValue.url || parsedValue.link);
                 audio.load();
+                dropAreaContent.innerText = '';
                 this.setSongName(parsedValue.name || parsedValue.link);
                 playButton.innerHTML = '<img src="' + this.basePath + 'assets/buttons/play.png" alt="play icon">';
             }
@@ -622,7 +640,7 @@ class SpaceAudioPlayer extends HTMLElement {
         progressbar.addEventListener("click", seek);
 
         if (player.currentTime === player.duration) {
-            this.shadowRoot.getElementById('playPause').innerHTML = '<img src="' + this.basePath + 'assets/buttons/play.png" alt="play icon">';
+            this.shadowRoot.getElementById('play-pause').innerHTML = '<img src="' + this.basePath + 'assets/buttons/play.png" alt="play icon">';
         }
 
         function seek(evt) {
@@ -633,7 +651,7 @@ class SpaceAudioPlayer extends HTMLElement {
     };
 
     playPause() {
-        const button = this.shadowRoot.getElementById('playPause');
+        const button = this.shadowRoot.getElementById('play-pause');
         if (this.audio.paused) {
             this.audio.play();
             button.innerHTML = '<img src="' + this.basePath + 'assets/buttons/pause.png" alt="pause icon">';
@@ -662,10 +680,9 @@ class SpaceAudioPlayer extends HTMLElement {
         this.audio.currentTime = 0;
     }
 
-    dragOver(evt) {
+    cancelEvent(evt) {
         evt.stopPropagation();
         evt.preventDefault();
-        return false;
     }
 
     dropEvent(evt) {
@@ -673,9 +690,14 @@ class SpaceAudioPlayer extends HTMLElement {
         evt.preventDefault();
 
         const droppedFiles = evt.dataTransfer.files;
-        const confirmBtn = this.shadowRoot.getElementById('confirmBtn');
-        confirmBtn.value = JSON.stringify({name: droppedFiles[0].name, url: URL.createObjectURL(droppedFiles[0])});
-        confirmBtn.disabled = false;
+
+        if (droppedFiles) {
+            const dropAreaContent = this.shadowRoot.getElementById('drop-area-content');
+            dropAreaContent.innerText = droppedFiles[0].name;
+            const confirmBtn = this.shadowRoot.getElementById('confirm-btn');
+            confirmBtn.value = JSON.stringify({name: droppedFiles[0].name, url: URL.createObjectURL(droppedFiles[0])});
+            confirmBtn.disabled = false;
+        }
     }
 
     setSongName(url) {
