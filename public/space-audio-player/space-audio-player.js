@@ -9,9 +9,9 @@ template.innerHTML = `
         flex-direction: column;
         background-repeat: repeat;
         font-family: mandalore;
-		font-size: 20px;
+	font-size: 20px;
         border-radius: 1rem;
-		color: #b90606;
+	color: #b90606;
         box-shadow: 1rem 0.5rem 0.5rem black;
         padding: 1rem;
         -webkit-text-stroke: 0.06rem black;
