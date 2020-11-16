@@ -150,7 +150,7 @@ template.innerHTML = `
     #song-title-container {
         height: 1.5rem;
         width: 30rem;
-        border: 0.2rem solid #b90606;
+        border: 0.2rem solid grey;
         overflow: hidden;
         position: relative;
         margin: 0 0 1rem 1.5rem;
@@ -301,6 +301,7 @@ class SpaceAudioPlayer extends HTMLElement {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.loadImpulse(this.basePath +'assets/audio/impulse.wav', this.buildNodes.bind(this));
         this.attachShadow({ mode: "open" });
+        this.setUpPrefetch();
         this.addFontFaceInHostCSS();
     }
 
@@ -330,6 +331,19 @@ class SpaceAudioPlayer extends HTMLElement {
             if (currentImagePath) {
                 e.setAttribute('knobsrc', this.basePath + currentImagePath);
             }
+        });
+    }
+
+    setUpPrefetch() {
+        let hostHead = document.querySelector('head');
+        if (!hostHead) {
+            hostHead = document.createElement('head');
+        }
+        ['pause.png', 'loop-on.png'].forEach((buttonImageName) => {
+            const link = document.createElement('link');
+            link.rel = 'prefetch';
+            link.href =  this.basePath + 'assets/buttons/' + buttonImageName
+            hostHead.appendChild(link);
         });
     }
 
